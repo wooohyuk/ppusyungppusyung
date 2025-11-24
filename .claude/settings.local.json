@@ -7,7 +7,12 @@
       "WebFetch(domain:opengameart.org)",
       "WebFetch(domain:rancic.itch.io)",
       "WebFetch(domain:chasersgaming.itch.io)",
-      "WebFetch(domain:luizmelo.itch.io)"
+      "WebFetch(domain:luizmelo.itch.io)",
+      "Bash(tree:*)",
+      "WebFetch(domain:elthen.itch.io)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

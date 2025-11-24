@@ -50,6 +50,11 @@ class Character {
     // 콤보 시스템
     this.comboCount = 0; // 0: 오른손, 1: 왼손, 2: 어퍼컷
 
+    // 선입력 버퍼 (입력 버퍼링)
+    this.inputBuffer = null; // 'attack' 또는 'jump'
+    this.bufferTime = 0; // 버퍼 입력 시간
+    this.bufferDuration = 300; // 버퍼 유효 시간 (ms)
+
     // 점프 상태 관리
     this.jumpY = 0;
     this.jumpVelocity = 0;
@@ -77,6 +82,62 @@ class Character {
   }
 
   /**
+   * 입력 버퍼에 저장
+   * @param {string} inputType - 'attack' 또는 'jump'
+   */
+  bufferInput(inputType) {
+    this.inputBuffer = inputType;
+    this.bufferTime = millis(); // Date.now() 대신 millis() 사용
+    console.log(`🎯 선입력 저장: ${inputType}`);
+  }
+
+  /**
+   * 버퍼 처리 - 애니메이션이 끝났을 때 호출
+   * @returns {boolean} 버퍼가 처리되었으면 true
+   */
+  processBuffer() {
+    // 버퍼가 없으면 무시
+    if (!this.inputBuffer) return false;
+
+    // 버퍼 유효 시간 체크 (millis() 사용)
+    const elapsed = millis() - this.bufferTime;
+    if (elapsed > this.bufferDuration) {
+      this.inputBuffer = null;
+      return false;
+    }
+
+    // 버퍼된 입력 처리
+    const bufferedInput = this.inputBuffer;
+    this.inputBuffer = null; // 버퍼 클리어
+
+    if (bufferedInput === 'attack') {
+      console.log('✅ 선입력 실행: 공격');
+      return true; // 공격 버퍼 - 외부에서 처리
+    } else if (bufferedInput === 'jump') {
+      console.log('✅ 선입력 실행: 점프');
+      return true; // 점프 버퍼 - 외부에서 처리
+    }
+
+    return false;
+  }
+
+  /**
+   * 버퍼된 입력 타입 반환
+   * @returns {string|null} 버퍼된 입력 타입
+   */
+  getBufferedInput() {
+    if (!this.inputBuffer) return null;
+
+    const elapsed = millis() - this.bufferTime; // millis() 사용
+    if (elapsed > this.bufferDuration) {
+      this.inputBuffer = null;
+      return null;
+    }
+
+    return this.inputBuffer;
+  }
+
+  /**
    * 현재 공격 중인지 확인
    * @returns {boolean} 공격 중이면 true
    */
@@ -99,27 +160,36 @@ class Character {
 
   /**
    * 'a' 키 공격 처리 - 3단 콤보 시스템
+   * @returns {boolean} 공격이 실행되었으면 true
    */
   handleAttack() {
     // DEAD 상태에서는 공격 불가
     if (this.currentState === this.states.DEAD) {
       console.log('⚠️ 사망 상태에서는 공격할 수 없습니다.');
-      return;
+      return false;
     }
 
-    // 데미지 받는 중에도 공격 불가
+    // 데미지 받는 중에도 공격 불가 (버퍼도 안됨)
     if (this.currentState === this.states.DAMAGED) {
       console.log('⚠️ 피격 중에는 공격할 수 없습니다.');
-      return;
+      return false;
     }
 
-    // 현재 공격 중이면 무시 (애니메이션이 끝날 때까지 대기)
+    // 현재 공격 중이면 버퍼에 저장
     if (this.isAttacking()) {
-      console.log('⚠️ 공격 중입니다. 애니메이션이 끝날 때까지 기다려주세요.');
-      return;
+      this.bufferInput('attack');
+      return false;
     }
 
     // 콤보 카운트에 따라 공격 상태 전환
+    this.executeAttack();
+    return true;
+  }
+
+  /**
+   * 실제 공격 실행 (내부 메서드)
+   */
+  executeAttack() {
     switch (this.comboCount) {
       case 0:
         this.setState(this.states.RIGHT_PUNCH);
@@ -209,12 +279,12 @@ class Character {
       case this.states.LEFT_PUNCH:
       case this.states.UPPERCUT:
         loop = false;
-        frameRate = 15;
+        frameRate = 30; // 공격 속도 2배 증가
         break;
 
       case this.states.JUMP_PUNCH:
         loop = false;
-        frameRate = 12;
+        frameRate = 25; // 점프 공격도 빠르게
         break;
 
       case this.states.DAMAGED:
@@ -276,17 +346,37 @@ class Character {
 
   /**
    * 캐릭터 업데이트 (매 프레임 호출)
+   * @returns {Object|null} 처리된 버퍼 입력 정보 (sketch.js에서 처리)
    */
   update() {
+    let processedBuffer = null;
+
     if (this.animationManager) {
       this.animationManager.update();
 
-      // 애니메이션이 끝났을 때 RUN으로 복귀 (루프가 아닌 경우)
+      // 애니메이션이 끝났을 때 처리
       if (this.animationManager.isAnimationFinished()) {
         if (this.currentState !== this.states.RUN &&
             this.currentState !== this.states.IDLE &&
             this.currentState !== this.states.DEAD) {
-          this.setState(this.states.RUN);
+
+          // 버퍼된 입력이 있는지 확인
+          const bufferedInput = this.getBufferedInput();
+
+          if (bufferedInput === 'attack') {
+            // 버퍼된 공격 실행
+            this.inputBuffer = null;
+            this.executeAttack();
+            processedBuffer = { type: 'attack', executed: true };
+          } else if (bufferedInput === 'jump') {
+            // 버퍼된 점프 - RUN으로 복귀 후 점프 상태로
+            this.inputBuffer = null;
+            this.setState(this.states.JUMP_PUNCH);
+            processedBuffer = { type: 'jump', executed: true };
+          } else {
+            // 버퍼 없으면 RUN으로 복귀
+            this.setState(this.states.RUN);
+          }
         }
       }
     }
@@ -296,6 +386,8 @@ class Character {
 
     // UI 업데이트 (상태 표시)
     this.updateUI();
+
+    return processedBuffer;
   }
 
   /**
