@@ -363,7 +363,7 @@ class ScoreManager {
       const frame = runAnimation[frameIndex];
 
       // 캐릭터 스프라이트 그리기 (진행바 가운데에 위치)
-      const spriteSize = 110;
+      const spriteSize = 60; // 크기 축소 (110 → 60)
       imageMode(CENTER);
       image(frame, charX, charY, spriteSize, spriteSize);
     } else {

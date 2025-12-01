@@ -41,6 +41,22 @@ const MUSIC_LIST = [
       comboCount: [2, 2],
       comboDivision: 2
     }
+  },
+  {
+    name: 'Ttimi의 리듬 레이스',
+    file: 'assets/music/Ttimi의 리듬 레이스.mp3',
+    bpm: 155,
+    offset: 0,
+    volume: 0.7,
+    travelTime: 2000,
+    beatDivision: 2,
+    patterns: {
+      normalChance: 0.7,
+      comboChance: 0.15,
+      skipChance: 0.15,
+      comboCount: [2, 2],
+      comboDivision: 2
+    }
   }
 ];
 

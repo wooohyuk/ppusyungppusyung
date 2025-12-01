@@ -28,6 +28,9 @@ const SPRITE_PRESETS = {
     // 캐릭터 스케일 (1600x900 해상도 기준)
     characterScale: 3,
 
+    // 땅 오프셋 (화면 하단에서 얼마나 위에 배치할지)
+    groundOffset: 200,
+
     // 애니메이션 파일 정의
     files: {
       IDLE: 'Idle.png',
@@ -64,6 +67,93 @@ const SPRITE_PRESETS = {
       DEAD: 8
     }
   },
+
+  // Final Character (개별 프레임 방식)
+  FINAL_CHARACTER: {
+    name: 'Final Character',
+    author: 'Custom',
+    license: 'Custom',
+
+    // 로더 타입 지정
+    loaderType: 'individual-frames',
+
+    // 스프라이트 경로
+    path: 'assets/sprites/final-character/',
+
+    // 프레임 크기 (픽셀)
+    frameWidth: 300,
+    frameHeight: 384,
+
+    // 캐릭터 스케일 (1600x900 해상도 기준)
+    characterScale: 0.8,
+
+    // 땅 오프셋 (화면 하단에서 얼마나 위에 배치할지)
+    groundOffset: 100,
+
+    // 애니메이션 파일 정의 (개별 프레임)
+    animations: {
+      IDLE: {
+        path: 'idle/',
+        filePattern: 'idle_{n}.png',
+        frameCount: 8,
+        scale: 1.0 // 기본 스케일
+      },
+      RUN: {
+        path: 'run/',
+        filePattern: 'Run_{n}.png',
+        frameCount: 4,
+        scale: 0.164 // 1824/300 = 6.08배 크므로 1/6.08 = 0.164
+      },
+      JUMP: {
+        path: 'idle/',
+        filePattern: 'idle_{n}.png',
+        frameCount: 8,
+        scale: 1.0
+      },
+      FALL: {
+        path: 'idle/',
+        filePattern: 'idle_{n}.png',
+        frameCount: 8,
+        scale: 1.0
+      },
+      ATTACK1: {
+        path: 'right_punch/',
+        filePattern: 'right_punch_{n}.png',
+        frameCount: 6,
+        scale: 0.164 // 1824/300 = 6.08배 크므로 1/6.08 = 0.164
+      },
+      ATTACK2: {
+        path: 'right_punch/',
+        filePattern: 'right_punch_{n}.png',
+        frameCount: 6,
+        scale: 0.164
+      },
+      TAKE_HIT: {
+        path: 'idle/',
+        filePattern: 'idle_{n}.png',
+        frameCount: 8,
+        scale: 1.0
+      },
+      DEATH: {
+        path: 'idle/',
+        filePattern: 'idle_{n}.png',
+        frameCount: 8,
+        scale: 1.0
+      }
+    },
+
+    // 애니메이션 속도 (프레임 레이트)
+    frameRates: {
+      IDLE: 8,
+      RUN: 12,
+      RIGHT_PUNCH: 15,
+      LEFT_PUNCH: 15,
+      UPPERCUT: 15,
+      JUMP_PUNCH: 12,
+      DAMAGED: 10,
+      DEAD: 8
+    }
+  }
 
   // 다른 스프라이트 예시 (주석 처리)
   /*
@@ -113,7 +203,7 @@ const SPRITE_PRESETS = {
 // 현재 사용할 스프라이트 선택
 // ============================================
 // 다른 스프라이트로 변경하려면 이 값만 바꾸면 됩니다!
-const CURRENT_SPRITE = 'MARTIAL_HERO';
+const CURRENT_SPRITE = 'FINAL_CHARACTER'; // 또는 'MARTIAL_HERO'
 
 // ============================================
 // 현재 스프라이트 설정 가져오기

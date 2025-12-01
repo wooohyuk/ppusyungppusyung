@@ -12,7 +12,8 @@
       "WebFetch(domain:elthen.itch.io)",
       "Bash(mkdir:*)",
       "Bash(cat:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

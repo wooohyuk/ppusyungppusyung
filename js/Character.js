@@ -46,6 +46,7 @@ class Character {
     // 애니메이션 설정 (Martial Hero 스프라이트 기준)
     // 각 애니메이션이 별도 파일로 제공되므로, 로드된 후에 설정
     this.animations = {};
+    this.animationScales = {}; // 각 애니메이션별 개별 스케일
 
     // 콤보 시스템
     this.comboCount = 0; // 0: 오른손, 1: 왼손, 2: 어퍼컷
@@ -70,6 +71,35 @@ class Character {
    */
   setupAnimations(animationData) {
     this.animations = animationData;
+
+    // 각 애니메이션별 스케일 정보 로드 (개별 프레임 방식인 경우)
+    if (SPRITE_CONFIG.loaderType === 'individual-frames' && SPRITE_CONFIG.animations) {
+      for (let state in SPRITE_CONFIG.animations) {
+        const animConfig = SPRITE_CONFIG.animations[state];
+        this.animationScales[state] = animConfig.scale || 1.0;
+      }
+
+      // 매핑된 애니메이션에도 스케일 적용
+      if (this.animationScales['ATTACK1']) {
+        this.animationScales['RIGHT_PUNCH'] = this.animationScales['ATTACK1'];
+      }
+      if (this.animationScales['ATTACK2']) {
+        this.animationScales['LEFT_PUNCH'] = this.animationScales['ATTACK2'];
+        this.animationScales['UPPERCUT'] = this.animationScales['ATTACK2'];
+      }
+      if (this.animationScales['ATTACK1']) {
+        // JUMP_PUNCH는 공격 스케일 사용
+        this.animationScales['JUMP_PUNCH'] = this.animationScales['ATTACK1'];
+      }
+      if (this.animationScales['TAKE_HIT']) {
+        this.animationScales['DAMAGED'] = this.animationScales['TAKE_HIT'];
+      }
+      if (this.animationScales['DEATH']) {
+        this.animationScales['DEAD'] = this.animationScales['DEATH'];
+      }
+
+      console.log('✓ 애니메이션 스케일 매핑 완료:', this.animationScales);
+    }
 
     // 기본 애니메이션으로 RUN 설정
     if (this.animations[this.states.RUN]) {
@@ -396,7 +426,14 @@ class Character {
   display() {
     if (this.animationManager) {
       let renderY = this.y + this.jumpY;
-      this.animationManager.display(this.x, renderY, this.scale);
+
+      // 현재 상태에 맞는 개별 스케일 적용 (있으면)
+      let currentScale = this.scale;
+      if (this.animationScales[this.currentState]) {
+        currentScale = this.scale * this.animationScales[this.currentState];
+      }
+
+      this.animationManager.display(this.x, renderY, currentScale);
     }
   }
 

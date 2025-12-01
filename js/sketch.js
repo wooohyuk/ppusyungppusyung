@@ -84,19 +84,46 @@ function preload() {
 
   // 스프라이트 로드 시도
   try {
-    // 각 애니메이션 스프라이트 시트 로드
-    for (let [key, filename] of Object.entries(SPRITE_CONFIG.files)) {
-      let path = SPRITE_CONFIG.path + filename;
-      loadImage(
-        path,
-        (img) => {
-          spriteSheets[key] = img;
-          console.log(`✓ ${filename} 로드 완료`);
-        },
-        (err) => {
-          console.warn(`⚠ ${filename} 로드 실패:`, err);
+    const loaderType = SPRITE_CONFIG.loaderType || 'sprite-sheet';
+
+    if (loaderType === 'sprite-sheet') {
+      // 스프라이트 시트 방식 (기존)
+      for (let [key, filename] of Object.entries(SPRITE_CONFIG.files)) {
+        let path = SPRITE_CONFIG.path + filename;
+        loadImage(
+          path,
+          (img) => {
+            spriteSheets[key] = img;
+            console.log(`✓ ${filename} 로드 완료`);
+          },
+          (err) => {
+            console.warn(`⚠ ${filename} 로드 실패:`, err);
+          }
+        );
+      }
+    } else if (loaderType === 'individual-frames') {
+      // 개별 프레임 방식
+      for (let [key, animConfig] of Object.entries(SPRITE_CONFIG.animations)) {
+        if (!animations[key]) {
+          animations[key] = [];
         }
-      );
+
+        for (let i = 1; i <= animConfig.frameCount; i++) {
+          const framePath = SPRITE_CONFIG.path + animConfig.path + animConfig.filePattern.replace('{n}', i);
+          loadImage(
+            framePath,
+            (img) => {
+              animations[key][i - 1] = img;
+              if (i === animConfig.frameCount) {
+                console.log(`✓ ${key} 프레임 로드 완료 (${animConfig.frameCount}개)`);
+              }
+            },
+            (err) => {
+              console.warn(`⚠ ${framePath} 로드 실패:`, err);
+            }
+          );
+        }
+      }
     }
 
     // 벽 스프라이트 로드 (4개)
@@ -115,8 +142,9 @@ function preload() {
     }
 
     // 배경 이미지 로드
+    const bgPath = loaderType === 'individual-frames' ? 'assets/background/BSBS_BG.png' : 'assets/background/city.png';
     loadImage(
-      'assets/background/city.png',
+      bgPath,
       (img) => {
         backgroundImg = img;
         console.log('✓ 배경 이미지 로드 완료');
@@ -166,7 +194,13 @@ function setup() {
     extractAnimationFrames();
 
     // 캐릭터 생성 (화면 왼쪽에 배치 - 벽이 오른쪽에서 오므로)
-    character = new Character(null, GAME_WIDTH / 4, GAME_HEIGHT - 200);
+    // 땅 위치에 캐릭터의 발을 맞춤
+    const groundOffset = SPRITE_CONFIG.groundOffset || 200;
+    const groundY = GAME_HEIGHT - groundOffset;
+    const characterHeight = SPRITE_CONFIG.frameHeight * SPRITE_CONFIG.characterScale;
+    const characterY = groundY - (characterHeight / 2);
+
+    character = new Character(null, GAME_WIDTH / 4, characterY);
     character.setScale(SPRITE_CONFIG.characterScale);
     character.setupAnimations(animations);
     character.setState(character.states.IDLE); // 시작 시 IDLE 상태
@@ -314,6 +348,12 @@ function draw() {
 
       // 디버그 정보 표시
       wallManager.displayDebug(character.x);
+    }
+
+    // 게임 시작 전이나 게임 종료 후에는 IDLE 상태로 전환
+    const isGameInactive = !gameStarted || (scoreManager && scoreManager.isGameEnded());
+    if (isGameInactive && character.currentState !== character.states.IDLE) {
+      character.setState(character.states.IDLE);
     }
 
     // 캐릭터 업데이트 및 렌더링 (일시정지가 아닐 때만 업데이트)
@@ -910,6 +950,39 @@ function drawStartScreen() {
  * 애니메이션 프레임 추출
  */
 function extractAnimationFrames() {
+  const loaderType = SPRITE_CONFIG.loaderType || 'sprite-sheet';
+
+  if (loaderType === 'individual-frames') {
+    // 개별 프레임 방식: 이미 preload에서 animations에 로드됨
+    // ATTACK1 → RIGHT_PUNCH, ATTACK2 → LEFT_PUNCH, UPPERCUT 매핑
+    if (animations.ATTACK1) {
+      animations.RIGHT_PUNCH = animations.ATTACK1;
+    }
+    if (animations.ATTACK2) {
+      animations.LEFT_PUNCH = animations.ATTACK2;
+      animations.UPPERCUT = animations.ATTACK2;
+    }
+
+    // JUMP_PUNCH 조합
+    if (animations.JUMP && animations.ATTACK1) {
+      let jumpFrames = animations.JUMP.slice(0, 2);
+      let attackFrames = animations.ATTACK1.slice(0, 3);
+      animations.JUMP_PUNCH = [...jumpFrames, ...attackFrames];
+    }
+
+    // DAMAGED, DEAD도 매핑 (TAKE_HIT → DAMAGED, DEATH → DEAD)
+    if (animations.TAKE_HIT) {
+      animations.DAMAGED = animations.TAKE_HIT;
+    }
+    if (animations.DEATH) {
+      animations.DEAD = animations.DEATH;
+    }
+
+    console.log('✓ 애니메이션 프레임 준비 완료 (개별 프레임 방식)');
+    return;
+  }
+
+  // 스프라이트 시트 방식 (기존)
   const frameWidth = SPRITE_CONFIG.frameWidth;
   const frameHeight = SPRITE_CONFIG.frameHeight;
   const frameCounts = SPRITE_CONFIG.frameCounts;
@@ -974,11 +1047,24 @@ function extractAnimationFrames() {
  * 에셋 로드 확인
  */
 function checkAssetsLoaded() {
-  let loadedCount = Object.keys(spriteSheets).length;
-  assetsLoaded = loadedCount >= 3; // 최소 3개 이상 로드되면 실행 가능
+  const loaderType = SPRITE_CONFIG.loaderType || 'sprite-sheet';
 
-  if (assetsLoaded) {
-    console.log(`✓ ${loadedCount}개 스프라이트 로드 완료`);
+  if (loaderType === 'individual-frames') {
+    // 개별 프레임 방식: animations 객체에 로드된 애니메이션 수 확인
+    let loadedCount = Object.keys(animations).filter(key => animations[key] && animations[key].length > 0).length;
+    assetsLoaded = loadedCount >= 3; // 최소 3개 이상 로드되면 실행 가능
+
+    if (assetsLoaded) {
+      console.log(`✓ ${loadedCount}개 애니메이션 로드 완료`);
+    }
+  } else {
+    // 스프라이트 시트 방식
+    let loadedCount = Object.keys(spriteSheets).length;
+    assetsLoaded = loadedCount >= 3; // 최소 3개 이상 로드되면 실행 가능
+
+    if (assetsLoaded) {
+      console.log(`✓ ${loadedCount}개 스프라이트 로드 완료`);
+    }
   }
 }
 
@@ -1025,8 +1111,9 @@ function drawScrollingBackground() {
     image(backgroundImg, bgX1, 0, BASE_WIDTH, BASE_HEIGHT);
     image(backgroundImg, bgX2, 0, BASE_WIDTH, BASE_HEIGHT);
 
-    // 게임 시작 후에만 배경 스크롤
-    if (gameStarted) {
+    // 게임 진행 중일 때만 배경 스크롤 (시작 후 + 종료 전)
+    const isGameActive = gameStarted && (!scoreManager || !scoreManager.isGameEnded());
+    if (isGameActive) {
       // 배경 왼쪽으로 이동
       bgX1 -= bgSpeed;
       bgX2 -= bgSpeed;
