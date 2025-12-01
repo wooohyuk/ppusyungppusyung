@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>뿌슝뿌슝</title>
+    <!-- Font Awesome 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <!-- p5.js canvas will be inserted here -->
+    </div>
+
+    <!-- p5.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.min.js"></script>
+
+    <!-- 프로젝트 스크립트 -->
+    <script src="js/musicConfig.js"></script>
+    <script src="js/spriteConfig.js"></script>
+    <script src="js/SpriteSheet.js"></script>
+    <script src="js/SpriteLoader.js"></script>
+    <script src="js/AnimationManager.js"></script>
+    <script src="js/Character.js"></script>
+    <script src="js/Wall.js"></script>
+    <script src="js/WallManager.js"></script>
+    <script src="js/MusicManager.js"></script>
+    <script src="js/ScoreManager.js"></script>
+    <script src="js/RankingManager.js"></script>
+    <script src="js/LyricsManager.js"></script>
+    <script src="js/sketch.js"></script>
+</body>
+</html>
