@@ -13,9 +13,13 @@
       "Bash(mkdir:*)",
       "Bash(cat:*)",
       "Bash(curl:*)",
+<<<<<<< HEAD
       "Bash(chmod:*)",
       "Bash(mv:*)",
       "Bash(rm:*)"
+=======
+      "Bash(chmod:*)"
+>>>>>>> 91f98908324f5ef768438edd9c6a2029977e1c92
     ],
     "deny": [],
     "ask": []
