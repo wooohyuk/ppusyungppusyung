@@ -65,6 +65,10 @@ let isEnteringNickname = false; // 닉네임 입력 중
 let rankingSaved = false; // 랭킹 저장 완료 여부
 let savedRank = -1; // 저장된 등수
 
+// 정보 시스템
+let infoManager;
+let logoImg;
+
 // 미리듣기 및 곡 선택 버튼
 let isPreviewPlaying = false;
 let previewButton = null;
@@ -225,6 +229,12 @@ function preload() {
       (err) => { console.warn('⚠ 스코어 백보드 로드 실패:', err); }
     );
 
+    // 로고 이미지 로드
+    loadImage('assets/ui/logo.png',
+      (img) => { logoImg = img; console.log('✓ 로고 이미지 로드 완료'); },
+      (err) => { console.warn('⚠ 로고 이미지 로드 실패:', err); }
+    );
+
     // 히트 효과음 로드
     hitSound = loadSound('assets/sounds/hit.wav',
       () => { console.log('✓ 히트 효과음 (Kick_Basic) 로드 완료'); },
@@ -300,11 +310,18 @@ function setup() {
     // 가사 매니저 초기화
     lyricsManager = new LyricsManager();
 
+    // 정보 매니저 초기화
+    infoManager = new InfoManager();
+    if (logoImg) {
+      infoManager.setLogo(logoImg);
+    }
+
     console.log('✓ 캐릭터 초기화 완료');
     console.log('✓ 벽 시스템 초기화 완료');
     console.log('✓ 점수 시스템 초기화 완료');
     console.log('✓ 랭킹 시스템 초기화 완료');
     console.log('✓ 가사 시스템 초기화 완료');
+    console.log('✓ 정보 시스템 초기화 완료');
   } else {
     // 스프라이트 없이도 실행 가능하도록 경고만 표시
     showSpriteWarning();
@@ -497,6 +514,23 @@ function draw() {
       drawStartScreen();
     }
 
+    // 정보 팝업 표시
+    if (infoManager && infoManager.isPopupOpen()) {
+      // 팝업 열릴 때 다른 버튼들 숨기기
+      if (previewButton) previewButton.hide();
+      if (leftArrowButton) leftArrowButton.hide();
+      if (rightArrowButton) rightArrowButton.hide();
+
+      infoManager.displayPopup();
+    } else {
+      // 팝업 닫혔을 때 버튼들 다시 보이기 (게임 시작 전일 때만)
+      if (!gameStarted) {
+        if (previewButton) previewButton.show();
+        if (leftArrowButton) leftArrowButton.show();
+        if (rightArrowButton) rightArrowButton.show();
+      }
+    }
+
     // 게임 종료 화면
     if (scoreManager && scoreManager.isGameEnded()) {
       const config = getSelectedMusicConfig();
@@ -518,7 +552,16 @@ function draw() {
         };
       }
 
-      scoreManager.displayGameOver(config.name, config.bpm, rankingInfo);
+      scoreManager.displayGameOver(config.name, config.bpm, rankingInfo, infoManager);
+
+      // 정보 버튼 표시 (게임 종료 화면)
+      if (infoManager) {
+        if (!infoManager.infoButton) {
+          infoManager.createInfoButton();
+        }
+        infoManager.showInfoButton();
+        infoManager.updateInfoButtonPosition(gameScale);
+      }
 
       // 카운트다운 완료 시 자동 리셋 (닉네임 입력 중이 아닐 때만)
       if (scoreManager.isCountdownFinished() && !isEnteringNickname) {
@@ -606,6 +649,9 @@ function windowResized() {
   if (!gameStarted) {
     if (previewButton) updatePreviewButtonPosition();
     if (leftArrowButton && rightArrowButton) updateArrowButtonsPosition();
+    if (infoManager && infoManager.infoButton) {
+      infoManager.updateInfoButtonPosition(gameScale);
+    }
   }
 }
 
@@ -613,6 +659,14 @@ function windowResized() {
  * 키 입력 처리
  */
 function keyPressed() {
+  // 정보 팝업이 열려있으면 ESC로 닫기
+  if (infoManager && infoManager.isPopupOpen()) {
+    if (keyCode === ESCAPE) {
+      infoManager.closePopup();
+      return;
+    }
+  }
+
   // 닉네임 입력 중일 때
   if (isEnteringNickname) {
     handleNicknameInput(key, keyCode);
@@ -741,6 +795,23 @@ function keyPressed() {
 }
 
 /**
+ * 마우스 클릭 처리
+ */
+function mousePressed() {
+  // 팝업 방금 열렸으면 무시 (버튼 클릭 직후)
+  if (infoManager && infoManager.justOpenedPopup) {
+    return false;
+  }
+
+  // 정보 팝업이 열려있으면 클릭으로 닫기
+  if (infoManager && infoManager.isPopupOpen()) {
+    infoManager.closePopup();
+    console.log('팝업 닫힘');
+    return false;
+  }
+}
+
+/**
  * 벽 충돌 판정
  * 벽이 캐릭터와 충돌하면 데미지
  */
@@ -857,6 +928,11 @@ function startGame() {
   hidePreviewButton();
   hideArrowButtons();
 
+  // 정보 버튼 숨기기
+  if (infoManager) {
+    infoManager.hideInfoButton();
+  }
+
   gameStarted = true;
   gameState = 'playing';
 
@@ -918,6 +994,11 @@ function resetGame() {
   updatePreviewButtonIcon();
   showPreviewButton();
   showArrowButtons();
+
+  // 정보 버튼 다시 보이기
+  if (infoManager) {
+    infoManager.showInfoButton();
+  }
 
   console.log('🔄 게임 리셋! 스페이스바로 다시 시작');
 }
@@ -1021,6 +1102,14 @@ function drawStartScreen() {
       createArrowButtons();
     }
     updateArrowButtonsPosition();
+
+    // 정보 버튼 생성 (없으면)
+    if (infoManager && !infoManager.infoButton) {
+      infoManager.createInfoButton();
+    }
+    if (infoManager && infoManager.infoButton) {
+      infoManager.updateInfoButtonPosition(gameScale);
+    }
   } else {
     fill(255, 200, 100);
     text('로딩 중...', BASE_WIDTH / 2, BASE_HEIGHT / 2 + 175);

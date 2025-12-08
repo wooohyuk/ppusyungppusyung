@@ -596,8 +596,9 @@ class ScoreManager {
    * @param {string} musicName - 플레이한 곡 이름
    * @param {number} bpm - BPM
    * @param {Object} rankingInfo - 랭킹 정보 (선택)
+   * @param {Object} infoManager - 정보 매니저 (선택, 로고 표시용)
    */
-  displayGameOver(musicName, bpm, rankingInfo = null) {
+  displayGameOver(musicName, bpm, rankingInfo = null, infoManager = null) {
     if (!this.gameEnded) return;
 
     push();
