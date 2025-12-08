@@ -54,7 +54,7 @@ class Character {
     // 선입력 버퍼 (입력 버퍼링)
     this.inputBuffer = null; // 'attack' 또는 'jump'
     this.bufferTime = 0; // 버퍼 입력 시간
-    this.bufferDuration = 300; // 버퍼 유효 시간 (ms)
+    this.bufferDuration = 500; // 버퍼 유효 시간 (ms) - 더 길게
 
     // 점프 상태 관리
     this.jumpY = 0;
@@ -63,6 +63,11 @@ class Character {
     this.jumpSpeed = -15;
     this.gravity = 1;
     this.groundY = y;
+
+    // 무적 시간 관리
+    this.isInvincible = false; // 무적 상태 여부
+    this.invincibleStartTime = 0; // 무적 시작 시간
+    this.invincibleDuration = 2000; // 무적 지속 시간 (2초)
   }
 
   /**
@@ -199,19 +204,13 @@ class Character {
       return false;
     }
 
-    // 데미지 받는 중에도 공격 불가 (버퍼도 안됨)
+    // 데미지 받는 중에도 공격 불가
     if (this.currentState === this.states.DAMAGED) {
       console.log('⚠️ 피격 중에는 공격할 수 없습니다.');
       return false;
     }
 
-    // 현재 공격 중이면 버퍼에 저장
-    if (this.isAttacking()) {
-      this.bufferInput('attack');
-      return false;
-    }
-
-    // 콤보 카운트에 따라 공격 상태 전환
+    // 애니메이션 완료 대기 없이 즉시 다음 공격 실행
     this.executeAttack();
     return true;
   }
@@ -309,12 +308,12 @@ class Character {
       case this.states.LEFT_PUNCH:
       case this.states.UPPERCUT:
         loop = false;
-        frameRate = 30; // 공격 속도 2배 증가
+        frameRate = 50; // 공격 속도 매우 빠르게 (빠른 연타 대응)
         break;
 
       case this.states.JUMP_PUNCH:
         loop = false;
-        frameRate = 25; // 점프 공격도 빠르게
+        frameRate = 35; // 점프 공격도 빠르게
         break;
 
       case this.states.DAMAGED:
@@ -375,38 +374,59 @@ class Character {
   }
 
   /**
+   * 무적 시간 활성화
+   */
+  activateInvincibility() {
+    this.isInvincible = true;
+    this.invincibleStartTime = millis();
+    console.log('⭐ 무적 시간 시작 (2초)');
+  }
+
+  /**
+   * 무적 시간 업데이트
+   */
+  updateInvincibility() {
+    if (this.isInvincible) {
+      const elapsed = millis() - this.invincibleStartTime;
+      if (elapsed >= this.invincibleDuration) {
+        this.isInvincible = false;
+        console.log('✓ 무적 시간 종료');
+      }
+    }
+  }
+
+  /**
+   * 무적 상태 확인
+   * @returns {boolean} 무적이면 true
+   */
+  isInvincibleNow() {
+    return this.isInvincible;
+  }
+
+  /**
    * 캐릭터 업데이트 (매 프레임 호출)
    * @returns {Object|null} 처리된 버퍼 입력 정보 (sketch.js에서 처리)
    */
   update() {
     let processedBuffer = null;
 
+    // 무적 시간 업데이트
+    this.updateInvincibility();
+
     if (this.animationManager) {
       this.animationManager.update();
 
-      // 애니메이션이 끝났을 때 처리
+      // 애니메이션이 끝났을 때 처리 (RUN 상태로 복귀만)
       if (this.animationManager.isAnimationFinished()) {
-        if (this.currentState !== this.states.RUN &&
+        // DAMAGED 상태가 끝나면 무적 시간 활성화
+        if (this.currentState === this.states.DAMAGED) {
+          this.activateInvincibility();
+          this.setState(this.states.RUN);
+        } else if (this.currentState !== this.states.RUN &&
             this.currentState !== this.states.IDLE &&
             this.currentState !== this.states.DEAD) {
-
-          // 버퍼된 입력이 있는지 확인
-          const bufferedInput = this.getBufferedInput();
-
-          if (bufferedInput === 'attack') {
-            // 버퍼된 공격 실행
-            this.inputBuffer = null;
-            this.executeAttack();
-            processedBuffer = { type: 'attack', executed: true };
-          } else if (bufferedInput === 'jump') {
-            // 버퍼된 점프 - RUN으로 복귀 후 점프 상태로
-            this.inputBuffer = null;
-            this.setState(this.states.JUMP_PUNCH);
-            processedBuffer = { type: 'jump', executed: true };
-          } else {
-            // 버퍼 없으면 RUN으로 복귀
-            this.setState(this.states.RUN);
-          }
+          // 공격 애니메이션 끝나면 RUN으로 복귀
+          this.setState(this.states.RUN);
         }
       }
     }
@@ -425,6 +445,18 @@ class Character {
    */
   display() {
     if (this.animationManager) {
+      // 무적 시간 중 깜빡임 효과
+      if (this.isInvincible) {
+        const blinkInterval = 100; // 100ms 간격으로 깜빡임
+        const elapsed = millis() - this.invincibleStartTime;
+        const blinkPhase = Math.floor(elapsed / blinkInterval) % 2;
+
+        // 깜빡이는 프레임에서는 렌더링 생략
+        if (blinkPhase === 1) {
+          return;
+        }
+      }
+
       let renderY = this.y + this.jumpY;
 
       // 현재 상태에 맞는 개별 스케일 적용 (있으면)

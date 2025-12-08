@@ -28,6 +28,9 @@ class Wall {
     };
     this.currentState = this.states.NORMAL;
 
+    // 판정 상태
+    this.hasBeenJudged = false; // 이미 판정을 받았는지 여부
+
     // 파괴 애니메이션
     this.destroyTimer = 0;
     this.destroyDuration = 300; // 파괴 이펙트 지속 시간 (ms)

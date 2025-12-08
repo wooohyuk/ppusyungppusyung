@@ -18,12 +18,27 @@ const MUSIC_LIST = [
     travelTime: 2000,
     beatDivision: 2,
     patterns: {
-      normalChance: 0.7,
-      comboChance: 0.15,
-      skipChance: 0.15,
-      comboCount: [2, 2],
-      comboDivision: 2
-    }
+      normalChance: 0.45,      // 일반 벽
+      comboChance: 0.15,       // 연타 (2-3개)
+      tripleComboChance: 0.10, // 3연타
+      rapidComboChance: 0.10,  // 빠른 연타 (5개)
+      delayedComboChance: 0.05, // 지연 연타
+      skipChance: 0.15,        // 쉬는 타이밍
+      comboCount: [2, 3],      // 일반 연타 2-3개
+      tripleComboCount: 3,     // 3연타
+      rapidComboCount: 5,      // 빠른 연타 5개
+      delayedComboCount: 2,    // 지연 연타 2개
+      comboDivision: 2,        // 일반 연타 속도
+      rapidDivision: 4,        // 빠른 연타 속도 (4배분할 = 16비트)
+      delayedOffset: 0.3       // 지연 연타 오프셋 (박자의 30% 지연)
+    },
+    sections: [ // 구간별 패턴 설정
+      { start: 0, end: 20000, name: 'intro', speedMultiplier: 1.0 },
+      { start: 20000, end: 60000, name: 'verse', speedMultiplier: 1.1 },
+      { start: 60000, end: 90000, name: 'chorus', speedMultiplier: 1.2 },
+      { start: 90000, end: 120000, name: 'bridge', speedMultiplier: 1.15 },
+      { start: 120000, end: 999999, name: 'outro', speedMultiplier: 1.3 }
+    ]
   },
   {
     name: '해 뜨기도 전에 회사로 향하고',
@@ -35,12 +50,26 @@ const MUSIC_LIST = [
     travelTime: 2000,
     beatDivision: 1, // 매 비트마다 벽 생성 (더 자주)
     patterns: {
-      normalChance: 0.8,  // 일반 벽 확률 증가
-      comboChance: 0.1,   // 콤보 확률 감소 (겹침 방지)
-      skipChance: 0.1,    // 쉬는 타이밍 감소
-      comboCount: [2, 2],
-      comboDivision: 2
-    }
+      normalChance: 0.55,      // 일반 벽
+      comboChance: 0.15,       // 연타 (2개)
+      tripleComboChance: 0.10, // 3연타
+      rapidComboChance: 0.05,  // 빠른 연타 (4개)
+      delayedComboChance: 0.05, // 지연 연타
+      skipChance: 0.10,        // 쉬는 타이밍 감소
+      comboCount: [2, 2],      // 일반 연타 2개 고정
+      tripleComboCount: 3,     // 3연타
+      rapidComboCount: 4,      // 빠른 연타 4개 (BPM 90 느려서 조정)
+      delayedComboCount: 2,    // 지연 연타 2개
+      comboDivision: 2,        // 일반 연타 속도
+      rapidDivision: 3,        // 빠른 연타 속도 (3배분할)
+      delayedOffset: 0.25      // 지연 연타 오프셋
+    },
+    sections: [ // 구간별 패턴 설정
+      { start: 0, end: 30000, name: 'intro', speedMultiplier: 1.0 },
+      { start: 30000, end: 90000, name: 'verse', speedMultiplier: 1.1 },
+      { start: 90000, end: 150000, name: 'chorus', speedMultiplier: 1.25 },
+      { start: 150000, end: 999999, name: 'outro', speedMultiplier: 1.2 }
+    ]
   },
   {
     name: 'Ttimi의 리듬 레이스',
@@ -51,12 +80,27 @@ const MUSIC_LIST = [
     travelTime: 2000,
     beatDivision: 2,
     patterns: {
-      normalChance: 0.7,
-      comboChance: 0.15,
-      skipChance: 0.15,
-      comboCount: [2, 2],
-      comboDivision: 2
-    }
+      normalChance: 0.40,      // 일반 벽
+      comboChance: 0.20,       // 연타 (2-3개)
+      tripleComboChance: 0.15, // 3연타
+      rapidComboChance: 0.10,  // 빠른 연타 (6개)
+      delayedComboChance: 0.05, // 지연 연타
+      skipChance: 0.10,        // 쉬는 타이밍
+      comboCount: [2, 3],      // 일반 연타 2-3개
+      tripleComboCount: 3,     // 3연타
+      rapidComboCount: 6,      // 빠른 연타 6개 (BPM 155 빠름)
+      delayedComboCount: 2,    // 지연 연타 2개
+      comboDivision: 2,        // 일반 연타 속도
+      rapidDivision: 4,        // 빠른 연타 속도 (4배분할)
+      delayedOffset: 0.35      // 지연 연타 오프셋
+    },
+    sections: [ // 구간별 패턴 설정 (빠른 곡이라 더 공격적)
+      { start: 0, end: 15000, name: 'intro', speedMultiplier: 1.0 },
+      { start: 15000, end: 45000, name: 'verse', speedMultiplier: 1.15 },
+      { start: 45000, end: 75000, name: 'chorus', speedMultiplier: 1.35 },
+      { start: 75000, end: 105000, name: 'bridge', speedMultiplier: 1.25 },
+      { start: 105000, end: 999999, name: 'outro', speedMultiplier: 1.4 }
+    ]
   }
 ];
 

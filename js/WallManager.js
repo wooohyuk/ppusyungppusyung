@@ -41,12 +41,31 @@ class WallManager {
     this.rhythmMode = false; // true면 비트 기반, false면 자동 스폰
     this.beatInterval = 500; // 비트 간격 (ms)
 
+    // 속도 증가 시스템
+    this.baseWallSpeed = 8; // 기본 벽 속도
+    this.currentSpeedMultiplier = 1.0; // 현재 속도 배율
+    this.maxSpeedMultiplier = 2.0; // 최대 속도 배율
+    this.speedIncreaseEnabled = true; // 속도 증가 활성화 여부
+
     // 디버그 모드
     this.debugMode = false;
 
     // 판정 시스템
-    this.lastJudgment = null; // { type: 'excellent'|'great'|'nice', time: ms, x: number, y: number }
+    this.lastJudgment = null; // { type: 'wow'|'great'|'good'|'miss', time: ms, x: number, y: number }
     this.judgmentDuration = 800; // 판정 표시 시간 (ms)
+
+    // 판정 이미지
+    this.judgmentImages = {
+      wow: null,
+      great: null,
+      good: null,
+      miss: null
+    };
+
+    // 히트 이펙트 시스템
+    this.hitEffectFrames = []; // 히트 이펙트 프레임 배열
+    this.activeHitEffects = []; // 현재 재생 중인 히트 이펙트들
+    this.hitEffectFrameRate = 60; // 각 프레임 지속 시간 (ms)
   }
 
   /**
@@ -66,7 +85,9 @@ class WallManager {
     const spawnX = this.gameWidth + 50; // 화면 오른쪽 밖에서 시작
 
     // 겹침 방지: 가장 최근 벽과의 거리 체크
-    const minDistance = 120; // 최소 간격 (벽 너비 + 여유)
+    // 빠른 연타를 위해 최소 간격을 속도에 반비례하게 조정
+    const baseMinDistance = 100; // 기본 최소 간격
+    const minDistance = Math.max(80, baseMinDistance / this.currentSpeedMultiplier);
     const recentWalls = this.walls.filter(w => w.currentState === w.states.NORMAL);
     if (recentWalls.length > 0) {
       const lastWall = recentWalls[recentWalls.length - 1];
@@ -76,10 +97,13 @@ class WallManager {
       }
     }
 
+    // 현재 속도 배율 적용
+    const currentSpeed = this.baseWallSpeed * this.currentSpeedMultiplier;
+
     const wall = new Wall(
       spawnX,
       this.wallY,
-      this.wallSpeed
+      currentSpeed
     );
 
     // 스프라이트가 있으면 순서대로 적용
@@ -123,16 +147,51 @@ class WallManager {
       // 일반 벽 1개
       this.spawnWall();
     } else if (pattern.type === 'combo') {
-      // 연타: 빠른 간격으로 여러 벽
+      // 일반 연타: 빠른 간격으로 여러 벽
       const count = pattern.count;
       const division = pattern.division || 2;
       const comboInterval = this.beatInterval / division;
 
       for (let i = 0; i < count; i++) {
-        // 시간차를 두고 벽 생성 (속도 조절로 간격 표현)
+        // 시간차를 두고 벽 생성
         setTimeout(() => {
           this.spawnWall();
         }, i * comboInterval);
+      }
+    } else if (pattern.type === 'tripleCombo') {
+      // 3연타: 일반 연타와 동일하지만 개수 고정
+      const count = pattern.count || 3;
+      const division = pattern.division || 2;
+      const comboInterval = this.beatInterval / division;
+
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+          this.spawnWall();
+        }, i * comboInterval);
+      }
+    } else if (pattern.type === 'rapidCombo') {
+      // 빠른 연타: 더 짧은 간격으로 많은 벽 (16비트 등)
+      const count = pattern.count || 5;
+      const division = pattern.division || 4;
+      const comboInterval = this.beatInterval / division;
+
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+          this.spawnWall();
+        }, i * comboInterval);
+      }
+    } else if (pattern.type === 'delayedCombo') {
+      // 지연 연타: 첫 타이밍을 약간 늦춰서 생성
+      const count = pattern.count || 2;
+      const division = pattern.division || 2;
+      const comboInterval = this.beatInterval / division;
+      const delayOffset = pattern.delayOffset || 0.3;
+      const initialDelay = this.beatInterval * delayOffset;
+
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+          this.spawnWall();
+        }, initialDelay + (i * comboInterval));
       }
     }
   }
@@ -157,23 +216,45 @@ class WallManager {
     const hitZoneX = this.getHitZoneX(characterX);
 
     for (let wall of this.walls) {
+      // 이미 판정받은 벽은 건너뜀
+      if (wall.hasBeenJudged) {
+        continue;
+      }
+
       if (wall.isInHitZone(hitZoneX, this.hitZoneWidth)) {
         // 벽과 Hit Zone 중심 사이의 거리로 판정
         const distance = Math.abs(wall.x - hitZoneX);
         const judgment = this.calculateJudgment(distance);
 
-        wall.destroy();
-        this.destroyedCount++;
+        // 이 벽은 판정을 받았음을 표시
+        wall.hasBeenJudged = true;
 
-        // 판정 저장
+        // MISS 판정이 아닐 때만 벽 파괴
+        const destroyed = judgment !== 'miss';
+
+        // 원래 위치 저장 (벽 이동 전)
+        const originalX = wall.x;
+
+        if (destroyed) {
+          wall.destroy();
+          this.destroyedCount++;
+
+          // 벽을 즉시 화면 밖으로 이동 (충돌 방지)
+          wall.x = -1000;
+
+          // 이펙트는 원래 위치에 생성
+          this.createHitEffect(originalX, this.wallY);
+        }
+
+        // 판정 저장 (원래 위치 사용)
         this.lastJudgment = {
           type: judgment,
           time: millis(),
-          x: wall.x,
+          x: originalX,
           y: this.wallY - 100
         };
 
-        return { type: judgment, destroyed: true };
+        return { type: judgment, destroyed: destroyed };
       }
     }
     return null;
@@ -185,15 +266,19 @@ class WallManager {
    * @returns {string} 판정 타입
    */
   calculateJudgment(distance) {
-    const excellentZone = this.hitZoneWidth * 0.15; // 중심 15%
-    const greatZone = this.hitZoneWidth * 0.35;     // 중심 35%
+    const wowZone = this.hitZoneWidth * 0.125;   // 중심 12.5% (25% width) - WOW
+    const greatZone = this.hitZoneWidth * 0.25;  // 중심 25% (50% width) - GREAT
+    const goodZone = this.hitZoneWidth * 0.40;   // 중심 40% (80% width) - GOOD
+    // MISS는 goodZone 밖 ~ hitZoneWidth 안쪽
 
-    if (distance <= excellentZone) {
-      return 'excellent';
+    if (distance <= wowZone) {
+      return 'wow';
     } else if (distance <= greatZone) {
       return 'great';
+    } else if (distance <= goodZone) {
+      return 'good';
     } else {
-      return 'nice';
+      return 'miss';
     }
   }
 
@@ -251,6 +336,80 @@ class WallManager {
   }
 
   /**
+   * 판정 이미지 설정
+   * @param {Object} images - 판정 이미지 객체 { wow, great, good, miss }
+   */
+  setJudgmentImages(images) {
+    this.judgmentImages = images;
+    console.log('✓ 판정 이미지 설정 완료');
+  }
+
+  /**
+   * 히트 이펙트 프레임 설정
+   * @param {Array<p5.Image>} frames - 히트 이펙트 프레임 배열
+   */
+  setHitEffectFrames(frames) {
+    this.hitEffectFrames = frames.filter(f => f); // null 제거
+    console.log(`✓ 히트 이펙트 ${this.hitEffectFrames.length}개 프레임 설정 완료`);
+  }
+
+  /**
+   * 히트 이펙트 생성
+   * @param {number} x - 이펙트 X 위치
+   * @param {number} y - 이펙트 Y 위치
+   */
+  createHitEffect(x, y) {
+    if (this.hitEffectFrames.length === 0) return;
+
+    this.activeHitEffects.push({
+      x: x,
+      y: y,
+      startTime: millis(),
+      currentFrame: 0
+    });
+  }
+
+  /**
+   * 히트 이펙트 업데이트 및 렌더링
+   */
+  updateAndDisplayHitEffects() {
+    if (this.hitEffectFrames.length === 0) return;
+
+    const currentTime = millis();
+    const totalFrames = this.hitEffectFrames.length;
+
+    // 완료된 이펙트 제거하면서 렌더링
+    this.activeHitEffects = this.activeHitEffects.filter(effect => {
+      const elapsed = currentTime - effect.startTime;
+      const frameIndex = Math.floor(elapsed / this.hitEffectFrameRate);
+
+      // 애니메이션 완료 확인
+      if (frameIndex >= totalFrames) {
+        return false; // 제거
+      }
+
+      // 현재 프레임 렌더링
+      const frame = this.hitEffectFrames[frameIndex];
+      if (frame) {
+        push();
+        imageMode(CENTER);
+
+        // 이펙트 크기를 벽 크기에 맞춤
+        // 벽 크기: width 80, height 150
+        const targetSize = 150; // 벽 높이 기준
+        const scale = targetSize / frame.height;
+        const w = frame.width * scale;
+        const h = frame.height * scale;
+
+        image(frame, effect.x, effect.y, w, h);
+        pop();
+      }
+
+      return true; // 유지
+    });
+  }
+
+  /**
    * 판정 표시 렌더링
    */
   displayJudgment() {
@@ -272,55 +431,50 @@ class WallManager {
     const x = this.lastJudgment.x;
     const y = this.lastJudgment.y + yOffset;
 
-    // 판정별 색상과 텍스트
-    let judgmentText, mainColor, glowColor;
-    switch (this.lastJudgment.type) {
-      case 'excellent':
-        judgmentText = 'EXCELLENT!';
-        mainColor = color(255, 215, 0); // 금색
-        glowColor = color(255, 200, 50, 150);
-        break;
-      case 'great':
-        judgmentText = 'GREAT!';
-        mainColor = color(0, 255, 150); // 청록색
-        glowColor = color(0, 255, 150, 150);
-        break;
-      case 'nice':
-        judgmentText = 'NICE';
-        mainColor = color(100, 200, 255); // 하늘색
-        glowColor = color(100, 200, 255, 150);
-        break;
-    }
+    // 판정 이미지 가져오기
+    const judgmentImg = this.judgmentImages[this.lastJudgment.type];
 
-    // 글로우 효과 (여러 레이어)
-    textAlign(CENTER, CENTER);
-    textSize(36 * scale);
+    if (judgmentImg) {
+      // 이미지로 판정 표시
+      imageMode(CENTER);
+      tint(255, 255 * fadeOut); // 페이드 아웃 효과
 
-    // 외부 글로우
-    for (let i = 3; i >= 1; i--) {
-      fill(red(glowColor), green(glowColor), blue(glowColor), 30 * fadeOut);
-      text(judgmentText, x + i, y + i);
-      text(judgmentText, x - i, y - i);
-      text(judgmentText, x + i, y - i);
-      text(judgmentText, x - i, y + i);
-    }
+      // 이미지 크기 (원본 비율 유지하면서 스케일)
+      const imgWidth = judgmentImg.width * scale * 0.5; // 크기 조정
+      const imgHeight = judgmentImg.height * scale * 0.5;
 
-    // 메인 텍스트 (테두리)
-    fill(0, 0, 0, 200 * fadeOut);
-    strokeWeight(4);
-    stroke(0, 0, 0, 150 * fadeOut);
-    text(judgmentText, x, y);
+      // 글로우 효과 (그림자)
+      for (let i = 3; i >= 1; i--) {
+        tint(255, 50 * fadeOut);
+        image(judgmentImg, x + i, y + i, imgWidth, imgHeight);
+      }
 
-    // 메인 텍스트
-    noStroke();
-    fill(red(mainColor), green(mainColor), blue(mainColor), 255 * fadeOut);
-    text(judgmentText, x, y);
+      // 메인 이미지
+      tint(255, 255 * fadeOut);
+      image(judgmentImg, x, y, imgWidth, imgHeight);
 
-    // Excellent일 때 반짝임 효과
-    if (this.lastJudgment.type === 'excellent' && progress < 0.5) {
-      const sparkle = Math.sin(elapsed * 0.05) * 0.5 + 0.5;
-      fill(255, 255, 255, 200 * sparkle * fadeOut);
-      textSize(38 * scale);
+      noTint();
+    } else {
+      // 이미지가 없으면 텍스트로 표시 (폴백)
+      let judgmentText;
+      switch (this.lastJudgment.type) {
+        case 'wow':
+          judgmentText = 'WOW!';
+          break;
+        case 'great':
+          judgmentText = 'GREAT!';
+          break;
+        case 'good':
+          judgmentText = 'GOOD';
+          break;
+        case 'miss':
+          judgmentText = 'MISS';
+          break;
+      }
+
+      textAlign(CENTER, CENTER);
+      textSize(36 * scale);
+      fill(255, 255, 255, 255 * fadeOut);
       text(judgmentText, x, y);
     }
 
@@ -338,24 +492,30 @@ class WallManager {
 
     const hitZoneX = this.getHitZoneX(characterX);
 
-    // Excellent 존 표시 (금색)
-    const excellentWidth = this.hitZoneWidth * 0.3;
-    fill(255, 215, 0, 30);
-    stroke(255, 215, 0);
+    // MISS 존 = 전체 Hit Zone (빨간색 - MISS 이미지 색상)
+    fill(255, 100, 100, 15);
+    stroke(255, 100, 100);
     strokeWeight(2);
     rectMode(CENTER);
-    rect(hitZoneX, this.wallY, excellentWidth, 200);
+    rect(hitZoneX, this.wallY, this.hitZoneWidth, 200);
 
-    // Great 존 표시 (청록색)
-    const greatWidth = this.hitZoneWidth * 0.7;
-    fill(0, 255, 150, 20);
-    stroke(0, 255, 150);
+    // GOOD 존 표시 (파란색 - GOOD 이미지 색상) - 중심 40%
+    const goodWidth = this.hitZoneWidth * 0.8;
+    fill(100, 180, 255, 20);
+    stroke(100, 180, 255);
+    rect(hitZoneX, this.wallY, goodWidth, 200);
+
+    // GREAT 존 표시 (초록색 - GREAT 이미지 색상) - 중심 25%
+    const greatWidth = this.hitZoneWidth * 0.5;
+    fill(100, 255, 150, 25);
+    stroke(100, 255, 150);
     rect(hitZoneX, this.wallY, greatWidth, 200);
 
-    // Nice 존 = 전체 Hit Zone (하늘색)
-    fill(100, 200, 255, 15);
-    stroke(100, 200, 255);
-    rect(hitZoneX, this.wallY, this.hitZoneWidth, 200);
+    // WOW 존 표시 (노란색 - WOW 이미지 색상) - 중심 12.5%
+    const wowWidth = this.hitZoneWidth * 0.25;
+    fill(255, 220, 100, 30);
+    stroke(255, 220, 100);
+    rect(hitZoneX, this.wallY, wowWidth, 200);
 
     // 캐릭터 충돌 영역 표시 (빨간 영역)
     fill(255, 0, 0, 50);
@@ -435,6 +595,46 @@ class WallManager {
     this.isActive = active;
     if (active) {
       this.lastSpawnTime = millis(); // 재개 시 타이머 리셋
+    }
+  }
+
+  /**
+   * 현재 구간의 속도 배율 설정 (구간별 패턴)
+   * @param {number} multiplier - 속도 배율
+   */
+  setSpeedMultiplierForSection(multiplier) {
+    if (!this.speedIncreaseEnabled) return;
+
+    // 최대 속도 제한
+    const clampedMultiplier = Math.min(multiplier, this.maxSpeedMultiplier);
+    this.currentSpeedMultiplier = clampedMultiplier;
+
+    // 기존 벽들의 속도도 업데이트
+    const newSpeed = this.baseWallSpeed * clampedMultiplier;
+    for (let wall of this.walls) {
+      wall.speed = newSpeed;
+    }
+
+    console.log(`⚡ 속도 변경: ${clampedMultiplier.toFixed(2)}x (${newSpeed.toFixed(1)} px/frame)`);
+  }
+
+  /**
+   * 현재 속도 배율 가져오기
+   * @returns {number} 현재 속도 배율
+   */
+  getSpeedMultiplier() {
+    return this.currentSpeedMultiplier;
+  }
+
+  /**
+   * 속도 증가 시스템 활성화/비활성화
+   * @param {boolean} enabled - 활성화 여부
+   */
+  setSpeedIncreaseEnabled(enabled) {
+    this.speedIncreaseEnabled = enabled;
+    if (!enabled) {
+      this.currentSpeedMultiplier = 1.0;
+      this.setSpeedMultiplierForSection(1.0);
     }
   }
 }

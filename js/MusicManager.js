@@ -142,8 +142,8 @@ class MusicManager {
       // 이렇게 하면 초반에 벽이 한꺼번에 나오는 버그를 방지
       if (spawnTime < 0) continue;
 
-      // 패턴에 따라 벽 생성 결정
-      const pattern = this.generatePattern();
+      // 패턴에 따라 벽 생성 결정 (현재 시간 전달)
+      const pattern = this.generatePattern(beatTime);
 
       if (pattern.type !== 'skip') {
         this.scheduledBeats.push({
@@ -161,26 +161,90 @@ class MusicManager {
 
   /**
    * 벽 패턴 생성 (확률 기반)
+   * @param {number} currentTime - 현재 음악 시간 (ms)
    * @returns {Object} 패턴 정보
    */
-  generatePattern() {
+  generatePattern(currentTime = 0) {
     const patterns = this.config.patterns;
-    const rand = random();
 
-    if (rand < patterns.skipChance) {
+    // 구간별 패턴 확률 조정
+    let section = null;
+    if (this.config.sections) {
+      section = this.config.sections.find(s => currentTime >= s.start && currentTime < s.end);
+    }
+
+    const rand = random();
+    let cumulative = 0;
+
+    // skip 체크
+    cumulative += patterns.skipChance;
+    if (rand < cumulative) {
       return { type: 'skip' };
-    } else if (rand < patterns.skipChance + patterns.normalChance) {
-      return { type: 'normal', count: 1 };
-    } else {
-      // 연타 (콤보)
+    }
+
+    // normal 체크
+    cumulative += patterns.normalChance;
+    if (rand < cumulative) {
+      return {
+        type: 'normal',
+        count: 1,
+        section: section ? section.name : null
+      };
+    }
+
+    // combo 체크 (일반 연타)
+    cumulative += patterns.comboChance;
+    if (rand < cumulative) {
       const [min, max] = patterns.comboCount;
       const count = Math.floor(random(min, max + 1));
       return {
         type: 'combo',
         count: count,
-        division: patterns.comboDivision
+        division: patterns.comboDivision,
+        section: section ? section.name : null
       };
     }
+
+    // tripleCombo 체크 (3연타)
+    cumulative += patterns.tripleComboChance || 0;
+    if (rand < cumulative) {
+      return {
+        type: 'tripleCombo',
+        count: patterns.tripleComboCount || 3,
+        division: patterns.comboDivision,
+        section: section ? section.name : null
+      };
+    }
+
+    // rapidCombo 체크 (빠른 연타)
+    cumulative += patterns.rapidComboChance || 0;
+    if (rand < cumulative) {
+      return {
+        type: 'rapidCombo',
+        count: patterns.rapidComboCount || 5,
+        division: patterns.rapidDivision || 4,
+        section: section ? section.name : null
+      };
+    }
+
+    // delayedCombo 체크 (지연 연타)
+    cumulative += patterns.delayedComboChance || 0;
+    if (rand < cumulative) {
+      return {
+        type: 'delayedCombo',
+        count: patterns.delayedComboCount || 2,
+        division: patterns.comboDivision,
+        delayOffset: patterns.delayedOffset || 0.3,
+        section: section ? section.name : null
+      };
+    }
+
+    // 기본값 (normal)
+    return {
+      type: 'normal',
+      count: 1,
+      section: section ? section.name : null
+    };
   }
 
   /**

@@ -10,16 +10,18 @@ class ScoreManager {
 
     // 판정별 기본 점수 (콤보 배수 적용 전)
     this.pointsPerJudgment = {
-      excellent: 30,
-      great: 20,
-      nice: 10
+      wow: 50,
+      great: 30,
+      good: 15,
+      miss: 5
     };
 
     // 판정 통계
     this.judgmentCounts = {
-      excellent: 0,
+      wow: 0,
       great: 0,
-      nice: 0
+      good: 0,
+      miss: 0
     };
 
     // 콤보 시스템
@@ -29,9 +31,15 @@ class ScoreManager {
     this.comboDuration = 1000; // 콤보 표시 유지 시간
 
     // 체력 시스템
-    this.maxHealth = 100;
+    this.maxHealth = 7;
     this.health = this.maxHealth;
-    this.damagePerHit = 10;
+    this.damagePerHit = 1;
+
+    // HP 바 이미지
+    this.hpBarImages = null;
+
+    // 스코어 백보드 이미지
+    this.scoreBackboard = null;
 
     // 게임 상태
     this.gameEnded = false;
@@ -66,9 +74,9 @@ class ScoreManager {
 
   /**
    * 점수 추가 (벽 파괴 시)
-   * @param {string} judgment - 판정 타입 ('excellent', 'great', 'nice')
+   * @param {string} judgment - 판정 타입 ('wow', 'great', 'good', 'miss')
    */
-  addScore(judgment = 'nice') {
+  addScore(judgment = 'miss') {
     // 콤보 먼저 증가 (배수 계산에 반영)
     this.combo++;
     this.lastComboTime = millis();
@@ -77,7 +85,7 @@ class ScoreManager {
     }
 
     // 기본 점수 × 콤보 배수
-    const basePoints = this.pointsPerJudgment[judgment] || this.pointsPerJudgment.nice;
+    const basePoints = this.pointsPerJudgment[judgment] || this.pointsPerJudgment.miss;
     const multiplier = this.getComboMultiplier();
     const points = Math.floor(basePoints * multiplier);
 
@@ -228,9 +236,10 @@ class ScoreManager {
 
     // 판정 통계 초기화
     this.judgmentCounts = {
-      excellent: 0,
+      wow: 0,
       great: 0,
-      nice: 0
+      good: 0,
+      miss: 0
     };
 
     // 콤보 초기화
@@ -243,80 +252,133 @@ class ScoreManager {
    * 체력바 UI 표시 (왼쪽 위) - 하트 아이콘 + 체력바
    * @param {p5.Image} heartImg - 하트 아이콘 이미지 (선택)
    */
+  /**
+   * HP 바 이미지 설정
+   * @param {Object} images - HP 바 이미지 객체
+   */
+  setHpBarImages(images) {
+    this.hpBarImages = images;
+    console.log('✓ HP 바 이미지 설정 완료');
+  }
+
+  /**
+   * 스코어 백보드 이미지 설정
+   * @param {p5.Image} image - 백보드 이미지
+   */
+  setScoreBackboard(image) {
+    this.scoreBackboard = image;
+    console.log('✓ 스코어 백보드 이미지 설정 완료');
+  }
+
   displayHealth(heartImg) {
     push();
 
     const barX = 20;
     const barY = 20;
-    const barWidth = 320;
-    const barHeight = 36;
-    const healthPercent = this.health / this.maxHealth;
 
-    // 데미지 이펙트 계산
-    const timeSinceDamage = millis() - this.lastDamageTime;
-    const isDamageEffect = timeSinceDamage < this.damageEffectDuration;
-    const effectIntensity = isDamageEffect ? 1 - (timeSinceDamage / this.damageEffectDuration) : 0;
+    // HP 바 이미지가 있으면 이미지 사용
+    if (this.hpBarImages) {
+      let hpImage;
 
-    // 체력바 배경 (데미지 시 빨간색으로)
-    if (isDamageEffect) {
-      const flashAlpha = 150 + effectIntensity * 100;
-      fill(180 * effectIntensity, 0, 0, flashAlpha);
-    } else {
-      fill(0, 0, 0, 150);
-    }
-    noStroke();
-    rectMode(CORNER);
-    rect(barX - 5, barY - 5, barWidth + 60, barHeight + 15, 10);
-
-    // 데미지 시 빨간 테두리
-    if (isDamageEffect) {
-      stroke(255, 50, 50, 255 * effectIntensity);
-      strokeWeight(3);
-      noFill();
-      rect(barX - 5, barY - 5, barWidth + 60, barHeight + 15, 10);
-      noStroke();
-    }
-
-    // 하트 아이콘 (이미지 또는 이모지)
-    const iconSize = 32;
-    if (heartImg) {
-      imageMode(CENTER);
-      // 데미지 시 틴트 효과
-      if (isDamageEffect) {
-        tint(255, 150, 150);
+      // 체력에 따라 적절한 이미지 선택
+      if (this.health <= 0) {
+        hpImage = this.hpBarImages.empty;
+      } else if (this.health >= 7) {
+        hpImage = this.hpBarImages.full;
+      } else {
+        hpImage = this.hpBarImages[`hp${this.health}`];
       }
-      image(heartImg, barX + 20, barY + barHeight / 2 + 2, iconSize, iconSize);
-      noTint();
+
+      if (hpImage) {
+        imageMode(CORNER);
+
+        // 데미지 이펙트
+        const timeSinceDamage = millis() - this.lastDamageTime;
+        const isDamageEffect = timeSinceDamage < this.damageEffectDuration;
+
+        if (isDamageEffect) {
+          const effectIntensity = 1 - (timeSinceDamage / this.damageEffectDuration);
+          tint(255, 150 + effectIntensity * 105, 150 + effectIntensity * 105);
+        }
+
+        // HP 바 이미지 표시 (적절한 크기로 조정)
+        const scale = 0.25; // 크기 조정 (더 작게)
+        image(hpImage, barX, barY, hpImage.width * scale, hpImage.height * scale);
+
+        noTint();
+      }
     } else {
-      // 이미지 없으면 이모지 사용
-      textAlign(CENTER, CENTER);
-      textSize(28);
-      fill(isDamageEffect ? color(255, 100, 100) : color(255, 80, 100));
-      text('❤', barX + 18, barY + barHeight / 2 + 2);
-    }
+      // 기존 방식 (폴백)
+      const barWidth = 320;
+      const barHeight = 36;
+      const healthPercent = this.health / this.maxHealth;
 
-    // 체력바 외곽
-    const barStartX = barX + 45;
-    fill(50);
-    rect(barStartX, barY, barWidth, barHeight, 6);
+      // 데미지 이펙트 계산
+      const timeSinceDamage = millis() - this.lastDamageTime;
+      const isDamageEffect = timeSinceDamage < this.damageEffectDuration;
+      const effectIntensity = isDamageEffect ? 1 - (timeSinceDamage / this.damageEffectDuration) : 0;
 
-    // 체력바 내부 (체력에 따라 색상 변경)
-    let healthColor;
-    if (healthPercent > 0.6) {
-      healthColor = color(100, 255, 100); // 녹색
-    } else if (healthPercent > 0.3) {
-      healthColor = color(255, 200, 50); // 노란색
-    } else {
-      healthColor = color(255, 80, 80); // 빨간색
-    }
+      // 체력바 배경 (데미지 시 빨간색으로)
+      if (isDamageEffect) {
+        const flashAlpha = 150 + effectIntensity * 100;
+        fill(180 * effectIntensity, 0, 0, flashAlpha);
+      } else {
+        fill(0, 0, 0, 150);
+      }
+      noStroke();
+      rectMode(CORNER);
+      rect(barX - 5, barY - 5, barWidth + 60, barHeight + 15, 10);
 
-    fill(healthColor);
-    rect(barStartX + 3, barY + 3, (barWidth - 6) * healthPercent, barHeight - 6, 4);
+      // 데미지 시 빨간 테두리
+      if (isDamageEffect) {
+        stroke(255, 50, 50, 255 * effectIntensity);
+        strokeWeight(3);
+        noFill();
+        rect(barX - 5, barY - 5, barWidth + 60, barHeight + 15, 10);
+        noStroke();
+      }
 
-    // 데미지 시 체력바 위에 빨간 플래시 오버레이
-    if (isDamageEffect) {
-      fill(255, 0, 0, 150 * effectIntensity);
+      // 하트 아이콘 (이미지 또는 이모지)
+      const iconSize = 32;
+      if (heartImg) {
+        imageMode(CENTER);
+        // 데미지 시 틴트 효과
+        if (isDamageEffect) {
+          tint(255, 150, 150);
+        }
+        image(heartImg, barX + 20, barY + barHeight / 2 + 2, iconSize, iconSize);
+        noTint();
+      } else {
+        // 이미지 없으면 이모지 사용
+        textAlign(CENTER, CENTER);
+        textSize(28);
+        fill(isDamageEffect ? color(255, 100, 100) : color(255, 80, 100));
+        text('❤', barX + 18, barY + barHeight / 2 + 2);
+      }
+
+      // 체력바 외곽
+      const barStartX = barX + 45;
+      fill(50);
+      rect(barStartX, barY, barWidth, barHeight, 6);
+
+      // 체력바 내부 (체력에 따라 색상 변경)
+      let healthColor;
+      if (healthPercent > 0.6) {
+        healthColor = color(100, 255, 100); // 녹색
+      } else if (healthPercent > 0.3) {
+        healthColor = color(255, 200, 50); // 노란색
+      } else {
+        healthColor = color(255, 80, 80); // 빨간색
+      }
+
+      fill(healthColor);
       rect(barStartX + 3, barY + 3, (barWidth - 6) * healthPercent, barHeight - 6, 4);
+
+      // 데미지 시 체력바 위에 빨간 플래시 오버레이
+      if (isDamageEffect) {
+        fill(255, 0, 0, 150 * effectIntensity);
+        rect(barStartX + 3, barY + 3, (barWidth - 6) * healthPercent, barHeight - 6, 4);
+      }
     }
 
     pop();
@@ -396,22 +458,48 @@ class ScoreManager {
   displayScore() {
     push();
 
-    // 점수 박스 배경
-    fill(0, 0, 0, 150);
-    noStroke();
-    rectMode(CORNER);
-    rect(this.baseWidth - 220, 15, 200, 70, 10);
+    const scoreX = this.baseWidth - 30;
+    const scoreY = 25;
 
-    // SCORE 라벨
-    fill(255, 220, 100);
-    textAlign(RIGHT, TOP);
-    textSize(18);
-    text('SCORE', this.baseWidth - 30, 25);
+    // 백보드 이미지가 있으면 사용
+    if (this.scoreBackboard) {
+      imageMode(CORNER);
+      // 백보드 크기 및 위치 조정
+      const backboardWidth = 240;
+      const backboardHeight = 100; // 높이 증가
+      const backboardX = this.baseWidth - backboardWidth - 10;
+      const backboardY = 15;
 
-    // 점수 숫자
-    fill(255);
-    textSize(32);
-    text(this.score.toString().padStart(6, '0'), this.baseWidth - 30, 48);
+      image(this.scoreBackboard, backboardX, backboardY, backboardWidth, backboardHeight);
+
+      // 백보드 위에 텍스트 표시
+      // SCORE 라벨
+      fill(0); // 검은색 텍스트 (노란 배경에 잘 보임)
+      textAlign(CENTER, TOP);
+      textSize(20);
+      textStyle(BOLD);
+      text('SCORE', backboardX + backboardWidth / 2, backboardY + 20);
+
+      // 점수 숫자
+      textSize(36);
+      text(this.score.toString().padStart(6, '0'), backboardX + backboardWidth / 2, backboardY + 50);
+      textStyle(NORMAL);
+    } else {
+      // 기존 방식 (폴백)
+      fill(0, 0, 0, 150);
+      noStroke();
+      rectMode(CORNER);
+      rect(this.baseWidth - 220, 15, 200, 70, 10);
+
+      fill(255, 220, 100);
+      textAlign(RIGHT, TOP);
+      textSize(18);
+      text('SCORE', scoreX, scoreY);
+
+      fill(255);
+      textSize(32);
+      text(this.score.toString().padStart(6, '0'), scoreX, scoreY + 23);
+    }
 
     pop();
   }
@@ -600,9 +688,9 @@ class ScoreManager {
 
       textAlign(LEFT, CENTER);
       fill(255, 215, 0);
-      text('EXCELLENT', leftX - 80, statsY);
+      text('WOW', leftX - 80, statsY);
       textAlign(RIGHT, CENTER);
-      text(`${this.judgmentCounts.excellent}`, leftX + 80, statsY);
+      text(`${this.judgmentCounts.wow}`, leftX + 80, statsY);
 
       textAlign(LEFT, CENTER);
       fill(0, 255, 150);
@@ -612,16 +700,22 @@ class ScoreManager {
 
       textAlign(LEFT, CENTER);
       fill(100, 200, 255);
-      text('NICE', leftX - 80, statsY + 44);
+      text('GOOD', leftX - 80, statsY + 44);
       textAlign(RIGHT, CENTER);
-      text(`${this.judgmentCounts.nice}`, leftX + 80, statsY + 44);
+      text(`${this.judgmentCounts.good}`, leftX + 80, statsY + 44);
+
+      textAlign(LEFT, CENTER);
+      fill(200, 100, 100);
+      text('MISS', leftX - 80, statsY + 66);
+      textAlign(RIGHT, CENTER);
+      text(`${this.judgmentCounts.miss}`, leftX + 80, statsY + 66);
 
       // 최대 콤보
       textAlign(LEFT, CENTER);
       fill(255, 150, 255);
-      text('MAX COMBO', leftX - 80, statsY + 66);
+      text('MAX COMBO', leftX - 80, statsY + 88);
       textAlign(RIGHT, CENTER);
-      text(`${this.maxCombo}`, leftX + 80, statsY + 66);
+      text(`${this.maxCombo}`, leftX + 80, statsY + 88);
 
       // 닉네임 입력
       if (rankingInfo.isEntering) {
@@ -734,23 +828,27 @@ class ScoreManager {
       textSize(28);
       text(`${this.score}점`, centerX + 120, centerY + 60);
 
-      // 판정 통계 (게임오버)
-      textSize(14);
+      // 판정 통계 (게임오버) - 4단계
+      textSize(13);
       textAlign(LEFT, CENTER);
       fill(255, 215, 0);
-      text('EXCELLENT', centerX - 120, centerY + 100);
+      text('WOW', centerX - 120, centerY + 100);
       fill(0, 255, 150);
-      text('GREAT', centerX - 20, centerY + 100);
+      text('GREAT', centerX - 50, centerY + 100);
       fill(100, 200, 255);
-      text('NICE', centerX + 70, centerY + 100);
+      text('GOOD', centerX + 20, centerY + 100);
+      fill(200, 100, 100);
+      text('MISS', centerX + 90, centerY + 100);
 
       textAlign(RIGHT, CENTER);
       fill(255, 215, 0);
-      text(`${this.judgmentCounts.excellent}`, centerX - 30, centerY + 100);
+      text(`${this.judgmentCounts.wow}`, centerX - 55, centerY + 100);
       fill(0, 255, 150);
-      text(`${this.judgmentCounts.great}`, centerX + 60, centerY + 100);
+      text(`${this.judgmentCounts.great}`, centerX + 15, centerY + 100);
       fill(100, 200, 255);
-      text(`${this.judgmentCounts.nice}`, centerX + 130, centerY + 100);
+      text(`${this.judgmentCounts.good}`, centerX + 85, centerY + 100);
+      fill(200, 100, 100);
+      text(`${this.judgmentCounts.miss}`, centerX + 130, centerY + 100);
 
       // 최대 콤보 (게임오버)
       textAlign(CENTER, CENTER);

@@ -20,14 +20,28 @@ let backgroundImg;
 
 // UI 아이콘
 let heartIcon;
+
+// 시각 효과 (속도 증가)
+let speedEffectAlpha = 0; // 속도 변화 시 화면 플래시 효과
+let lastSpeedMultiplier = 1.0; // 이전 속도 배율
+let judgmentImages = {}; // 판정 이미지 (wow, great, good, miss)
+let hitEffectFrames = []; // 히트 이펙트 프레임 배열
+let hpBarImages = {}; // HP 바 이미지
+let scoreBackboard; // 스코어 백보드 이미지
 let bgX1 = 0; // 첫 번째 배경 X 위치
 let bgX2; // 두 번째 배경 X 위치 (setup에서 설정)
-let bgSpeed = 3; // 배경 스크롤 속도
+let baseBgSpeed = 3; // 기본 배경 스크롤 속도
+let bgSpeed = 3; // 현재 배경 스크롤 속도 (속도 배율 적용)
 
 // 음악 시스템
 let musicManager;
 let musicLoaded = []; // 각 곡별 로드 상태
 let gameStarted = false; // 게임 시작 여부
+
+// 효과음 시스템
+let hitSound; // 히트 효과음 (Kick_Basic.wav)
+let hitTestSound; // 테스트 히트 효과음
+let hitSoundManager; // 히트 효과음 매니저
 
 // 가사 시스템
 let lyricsManager;
@@ -126,8 +140,8 @@ function preload() {
       }
     }
 
-    // 벽 스프라이트 로드 (4개)
-    for (let i = 1; i <= 4; i++) {
+    // 벽 스프라이트 로드 (3개)
+    for (let i = 1; i <= 3; i++) {
       let path = `assets/sprites/obstacles/wall${i}.png`;
       loadImage(
         path,
@@ -164,6 +178,61 @@ function preload() {
       (err) => {
         console.warn('⚠ 하트 아이콘 로드 실패:', err);
       }
+    );
+
+    // 판정 이미지 로드
+    const judgmentTypes = ['wow', 'great', 'good', 'miss'];
+    judgmentTypes.forEach(type => {
+      loadImage(
+        `assets/ui/${type}.png`,
+        (img) => {
+          judgmentImages[type] = img;
+          console.log(`✓ ${type}.png 로드 완료`);
+        },
+        (err) => {
+          console.warn(`⚠ ${type}.png 로드 실패:`, err);
+        }
+      );
+    });
+
+    // 히트 이펙트 프레임 로드 (4개)
+    for (let i = 0; i < 4; i++) {
+      loadImage(
+        `assets/vfx/hit_${i}.png`,
+        (img) => {
+          hitEffectFrames[i] = img;
+          console.log(`✓ hit_${i}.png 로드 완료`);
+        },
+        (err) => {
+          console.warn(`⚠ hit_${i}.png 로드 실패:`, err);
+        }
+      );
+    }
+
+    // HP 바 이미지 로드
+    loadImage('assets/ui/hp_full.png', (img) => { hpBarImages.full = img; console.log('✓ hp_full.png 로드 완료'); });
+    loadImage('assets/ui/hp_6.png', (img) => { hpBarImages.hp6 = img; });
+    loadImage('assets/ui/hp_5.png', (img) => { hpBarImages.hp5 = img; });
+    loadImage('assets/ui/hp_4.png', (img) => { hpBarImages.hp4 = img; });
+    loadImage('assets/ui/hp_3.png', (img) => { hpBarImages.hp3 = img; });
+    loadImage('assets/ui/hp_2.png', (img) => { hpBarImages.hp2 = img; });
+    loadImage('assets/ui/hp_1.png', (img) => { hpBarImages.hp1 = img; });
+    loadImage('assets/ui/hp_empty.png', (img) => { hpBarImages.empty = img; console.log('✓ HP 바 이미지 로드 완료'); });
+
+    // 스코어 백보드 이미지 로드
+    loadImage('assets/ui/score_backboard.png',
+      (img) => { scoreBackboard = img; console.log('✓ 스코어 백보드 로드 완료'); },
+      (err) => { console.warn('⚠ 스코어 백보드 로드 실패:', err); }
+    );
+
+    // 히트 효과음 로드
+    hitSound = loadSound('assets/sounds/hit.wav',
+      () => { console.log('✓ 히트 효과음 (Kick_Basic) 로드 완료'); },
+      (err) => { console.warn('⚠ 히트 효과음 로드 실패:', err); }
+    );
+    hitTestSound = loadSound('assets/sounds/hit_test.wav',
+      () => { console.log('✓ 테스트 히트 효과음 로드 완료'); },
+      (err) => { console.warn('⚠ 테스트 히트 효과음 로드 실패:', err); }
     );
   } catch (error) {
     console.error('스프라이트 로드 중 오류:', error);
@@ -210,12 +279,20 @@ function setup() {
     wallManager.setSpawnInterval(2500); // 2.5초 간격으로 벽 생성
     wallManager.setWallSpeed(6); // 벽 이동 속도
     wallManager.setWallSprites(wallSprites); // 벽 스프라이트 설정
+    wallManager.setJudgmentImages(judgmentImages); // 판정 이미지 설정
+    wallManager.setHitEffectFrames(hitEffectFrames); // 히트 이펙트 설정
 
     // 음악 매니저 초기화
     initMusicManager();
 
+    // 히트 효과음 매니저 초기화
+    hitSoundManager = new HitSoundManager();
+    hitSoundManager.setSounds(hitSound, hitTestSound);
+
     // 점수 매니저 초기화
     scoreManager = new ScoreManager();
+    scoreManager.setHpBarImages(hpBarImages); // HP 바 이미지 설정
+    scoreManager.setScoreBackboard(scoreBackboard); // 스코어 백보드 설정
 
     // 랭킹 매니저 초기화
     rankingManager = new RankingManager();
@@ -277,6 +354,32 @@ function draw() {
       // 일시정지가 아닐 때만 업데이트
       if (gameState !== 'paused') {
         wallManager.update();
+
+        // 구간별 속도 업데이트
+        if (musicManager) {
+          const currentTime = musicManager.getCurrentTime();
+          const config = getSelectedMusicConfig();
+
+          if (config.sections) {
+            const currentSection = config.sections.find(s => currentTime >= s.start && currentTime < s.end);
+            if (currentSection) {
+              const targetMultiplier = currentSection.speedMultiplier || 1.0;
+              // 현재 배율과 다르면 업데이트
+              if (Math.abs(wallManager.getSpeedMultiplier() - targetMultiplier) > 0.01) {
+                wallManager.setSpeedMultiplierForSection(targetMultiplier);
+
+                // 배경 스크롤 속도도 업데이트
+                bgSpeed = baseBgSpeed * targetMultiplier;
+
+                // 속도 변화 시각 효과 트리거 (속도 증가 시에만)
+                if (targetMultiplier > lastSpeedMultiplier) {
+                  speedEffectAlpha = 150; // 플래시 효과 강도
+                }
+                lastSpeedMultiplier = targetMultiplier;
+              }
+            }
+          }
+        }
       }
       wallManager.display();
 
@@ -290,6 +393,11 @@ function draw() {
           canDestroyWall = false; // 한 공격당 한 번만 파괴
           attackHitWall = true; // 벽 맞춤 표시
           scoreManager.addScore(result.type); // 판정에 따른 점수 추가
+
+          // 히트 효과음 재생
+          if (hitSoundManager) {
+            hitSoundManager.play();
+          }
         }
       }
 
@@ -343,6 +451,9 @@ function draw() {
         checkWallCollision();
       }
 
+      // 히트 이펙트 표시
+      wallManager.updateAndDisplayHitEffects();
+
       // 판정 표시
       wallManager.displayJudgment();
 
@@ -357,16 +468,10 @@ function draw() {
     }
 
     // 캐릭터 업데이트 및 렌더링 (일시정지가 아닐 때만 업데이트)
-    let processedBuffer = null;
     if (gameState !== 'paused') {
-      processedBuffer = character.update();
+      character.update();
     }
     character.display();
-
-    // 버퍼된 공격이 실행되었으면 벽 파괴 가능 플래그 설정
-    if (processedBuffer && processedBuffer.executed) {
-      canDestroyWall = true;
-    }
 
     // 점수 및 체력 표시 (게임 중)
     if (gameStarted && scoreManager) {
@@ -424,6 +529,35 @@ function draw() {
     // 일시정지 화면
     if (gameState === 'paused') {
       drawPauseMenu();
+    }
+
+    // 속도 증가 시각 효과 (화면 플래시)
+    if (speedEffectAlpha > 0) {
+      push();
+      noStroke();
+      // 노란색 플래시로 변경 (속도 증가 = 긍정적 효과)
+      fill(255, 220, 100, speedEffectAlpha);
+      rectMode(CORNER);
+      rect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+      pop();
+
+      // 서서히 사라짐
+      speedEffectAlpha -= 5;
+      if (speedEffectAlpha < 0) speedEffectAlpha = 0;
+    }
+
+    // 현재 속도 배율 표시 (게임 중) - 스코어 창 아래
+    if (gameStarted && wallManager && !scoreManager.isGameEnded()) {
+      const currentMultiplier = wallManager.getSpeedMultiplier();
+      if (currentMultiplier > 1.0) {
+        push();
+        fill(255, 220, 100, 200); // 노란색
+        textAlign(RIGHT, TOP);
+        textSize(20);
+        // 스코어 백보드 아래 (Y: 15 + 100 + 10 = 125)
+        text(`SPEED: ${currentMultiplier.toFixed(1)}x`, BASE_WIDTH - 30, 125);
+        pop();
+      }
     }
   } else {
     // 스프라이트 없을 때 안내 메시지
@@ -616,6 +750,11 @@ function checkWallCollision() {
   // 이미 데미지 상태이거나 죽은 상태면 무시
   if (character.currentState === character.states.DAMAGED ||
       character.currentState === character.states.DEAD) {
+    return;
+  }
+
+  // 무적 시간 중이면 충돌 무시
+  if (character.isInvincibleNow()) {
     return;
   }
 
@@ -1107,9 +1246,21 @@ function displayGameInfo() {
  */
 function drawScrollingBackground() {
   if (backgroundImg) {
+    push();
+
+    // 게임 중일 때만 배경 어둡게 (시작 화면에서는 선명하게)
+    if (gameStarted && !scoreManager.isGameEnded()) {
+      // 배경 어둡게 + 채도 낮춤 (밝기 60%, 채도 낮춤)
+      // RGB 모드로 어두운 회색 톤 적용
+      tint(100, 100, 120, 180); // 약간 푸른빛 + 투명도
+    }
+
     // 두 개의 배경 이미지를 이어붙여서 그리기 (기준 해상도 사용)
     image(backgroundImg, bgX1, 0, BASE_WIDTH, BASE_HEIGHT);
     image(backgroundImg, bgX2, 0, BASE_WIDTH, BASE_HEIGHT);
+
+    noTint();
+    pop();
 
     // 게임 진행 중일 때만 배경 스크롤 (시작 후 + 종료 전)
     const isGameActive = gameStarted && (!scoreManager || !scoreManager.isGameEnded());
