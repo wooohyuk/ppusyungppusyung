@@ -319,7 +319,7 @@ class Character {
 
       case this.states.DAMAGED:
         loop = false;
-        frameRate = 10;
+        frameRate = 59;
         break;
 
       case this.states.DEAD:
