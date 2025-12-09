@@ -231,7 +231,7 @@ class WallManager {
         wall.hasBeenJudged = true;
 
         // MISS 판정이 아닐 때만 벽 파괴
-        const destroyed = judgment !== 'miss';
+       // const destroyed = judgment !== 'miss';
 
         // 원래 위치 저장 (벽 이동 전)
         const originalX = wall.x;
