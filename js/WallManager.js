@@ -245,7 +245,13 @@ class WallManager {
 
           // 이펙트는 원래 위치에 생성
           this.createHitEffect(originalX, this.wallY);
-        }
+        } 
+        
+        else {
+    // MISS → 벽 즉시 제거
+    wall.destroy();        
+    wall.x = -1000;        // 화면 밖으로 바로 이동
+  }
 
         // 판정 저장 (원래 위치 사용)
         this.lastJudgment = {
