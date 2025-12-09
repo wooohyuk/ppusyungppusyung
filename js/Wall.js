@@ -13,15 +13,15 @@ class Wall {
    * @param {number} speed - 이동 속도 (기본값: 8)
    */
   // 벽 속도 8 -> 16 로 상향
-  constructor(x, y, speed = 24) {
+  constructor(x, y, speed = 18) {
     this.x = x;
     this.y = y;
     this.speed = speed;
 
     // 벽 크기
     // 벽 크기 사이즈 각각 2배로 사이즈 업
-    this.width = 160;
-    this.height = 300;
+    this.width = 200;
+    this.height = 375;
 
     // 상태
     this.states = {
