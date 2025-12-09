@@ -370,7 +370,7 @@ function draw() {
     if (wallManager && gameStarted && !scoreManager.isGameEnded()) {
       // 일시정지가 아닐 때만 업데이트
       if (gameState !== 'paused') {
-        wallManager.update();
+        wallManager.update(character.x);
 
         // 구간별 속도 업데이트
         if (musicManager) {
