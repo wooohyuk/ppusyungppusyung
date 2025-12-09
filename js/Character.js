@@ -206,10 +206,10 @@ class Character {
     }
 
     // 데미지 받는 중에도 공격 불가
-    if (this.currentState === this.states.DAMAGED) {
-      console.log('⚠️ 피격 중에는 공격할 수 없습니다.');
-      return false;
-    }
+    //if (this.currentState === this.states.DAMAGED) {
+      //console.log('⚠️ 피격 중에는 공격할 수 없습니다.');
+      //return false;
+    //}
 
     // 애니메이션 완료 대기 없이 즉시 다음 공격 실행
     this.executeAttack();
