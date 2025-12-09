@@ -188,9 +188,10 @@ class Character {
    * @returns {boolean} 행동 불가능하면 true
    */
   isDisabled() {
-    return this.currentState === this.states.DEAD ||
-           this.currentState === this.states.DAMAGED ||
-           this.isAttacking();
+    return this.currentState === this.states.DEAD;
+   // return this.currentState === this.states.DEAD ||
+     //      this.currentState === this.states.DAMAGED ||
+       //    this.isAttacking();
   }
 
   /**
