@@ -30,8 +30,8 @@ let hpBarImages = {}; // HP 바 이미지
 let scoreBackboard; // 스코어 백보드 이미지
 let bgX1 = 0; // 첫 번째 배경 X 위치
 let bgX2; // 두 번째 배경 X 위치 (setup에서 설정)
-let baseBgSpeed = 3; // 기본 배경 스크롤 속도
-let bgSpeed = 6; // 현재 배경 스크롤 속도 (속도 배율 적용) // 속도 기존 3에서 6으로 2배 증가
+let baseBgSpeed = 12; // 기본 배경 스크롤 속도
+let bgSpeed = 24; // 현재 배경 스크롤 속도 (속도 배율 적용) // 속도 기존 3에서 6으로 2배 증가
 
 // 음악 시스템
 let musicManager;
