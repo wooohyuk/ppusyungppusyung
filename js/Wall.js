@@ -13,7 +13,7 @@ class Wall {
    * @param {number} speed - 이동 속도 (기본값: 8)
    */
   // 벽 속도 8 -> 16 로 상향
-  constructor(x, y, speed = 16) {
+  constructor(x, y, speed = 24) {
     this.x = x;
     this.y = y;
     this.speed = speed;
