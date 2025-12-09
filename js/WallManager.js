@@ -330,7 +330,15 @@ class WallManager {
     }
 
     // 제거해야 할 벽 삭제
-    this.walls = this.walls.filter(wall => !wall.shouldRemove());
+    this.walls = this.walls.filter(wall => {
+    // 1) destroy() 처리된 벽 제거
+    if (wall.shouldRemove()) return false;
+
+    // 2) 캐릭터 왼쪽으로 지나간 벽은 즉시 삭제
+    if (wall.x < character.x - this.hitZoneOffset) return false;
+
+    return true;
+});
   }
 
   /**
