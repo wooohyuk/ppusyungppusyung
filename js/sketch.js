@@ -31,7 +31,7 @@ let scoreBackboard; // 스코어 백보드 이미지
 let bgX1 = 0; // 첫 번째 배경 X 위치
 let bgX2; // 두 번째 배경 X 위치 (setup에서 설정)
 let baseBgSpeed = 3; // 기본 배경 스크롤 속도
-let bgSpeed = 3; // 현재 배경 스크롤 속도 (속도 배율 적용)
+let bgSpeed = 6; // 현재 배경 스크롤 속도 (속도 배율 적용) // 속도 기존 3에서 6으로 2배 증가
 
 // 음악 시스템
 let musicManager;
@@ -279,7 +279,7 @@ function setup() {
     const characterHeight = SPRITE_CONFIG.frameHeight * SPRITE_CONFIG.characterScale;
     const characterY = groundY - (characterHeight / 2);
 
-    character = new Character(null, GAME_WIDTH / 4, characterY);
+    character = new Character(null, GAME_WIDTH / 5, characterY); // 기존 GAME_WIDTH / 4 -> GAME_WIDTH / 5 변경
     character.setScale(SPRITE_CONFIG.characterScale);
     character.setupAnimations(animations);
     character.setState(character.states.IDLE); // 시작 시 IDLE 상태
@@ -1061,6 +1061,7 @@ function drawStartScreen() {
   fill(100, 255, 100);
   text('SPACE 를 눌러 시작', BASE_WIDTH / 2, BASE_HEIGHT / 2 - 40);
 
+  /* **조작 설명 박스 주석 삭제 처리
   // 조작 설명 박스
   fill(255, 255, 255, 30);
   rectMode(CENTER);
@@ -1083,6 +1084,7 @@ function drawStartScreen() {
   text('점프 공격', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 75);
   text('펀치 공격 (오른손 -> 왼손 -> 어퍼컷)', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 105);
   text('게임 리셋', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 135);
+  */
 
   // 음악 로드 상태
   textAlign(CENTER, CENTER);

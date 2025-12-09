@@ -513,7 +513,7 @@ class ScoreManager {
     push();
 
     const comboX = this.baseWidth / 2;
-    const comboY = this.baseHeight / 2 - 50;
+    const comboY = this.baseHeight / 3 - 50; // comboY 위치 (this.baseHeight / 2 - 50) -> (this.baseHeight / 3 - 50)
 
     // 콤보 애니메이션 효과
     const timeSinceCombo = millis() - this.lastComboTime;

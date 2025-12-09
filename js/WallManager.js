@@ -20,7 +20,8 @@ class WallManager {
     this.wallSpeed = 8; // 벽 이동 속도
 
     // 벽 Y 위치 (지면에 맞춤)
-    this.wallY = gameHeight - 200 - 75; // 캐릭터 발 위치에서 벽 높이/2 뺀 위치
+    // 벽 생성 위치 (gameHeight - 200 - 75) -> (gameHeight - 200 - 200) 으로 변경
+    this.wallY = gameHeight - 200 - 200; // 캐릭터 발 위치에서 벽 높이/2 뺀 위치
 
     // Hit Zone 설정 (캐릭터 앞쪽 공격 판정 영역)
     this.hitZoneOffset = 150; // 캐릭터 중심에서 Hit Zone까지의 거리
@@ -396,7 +397,7 @@ class WallManager {
 
         // 이펙트 크기를 벽 크기에 맞춤
         // 벽 크기: width 80, height 150
-        const targetSize = 150; // 벽 높이 기준
+        const targetSize = 300; // 벽 높이 기준 / 사이즈 150 -> 300 으로 변경
         const scale = targetSize / frame.height;
         const w = frame.width * scale;
         const h = frame.height * scale;
