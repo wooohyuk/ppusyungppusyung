@@ -1074,14 +1074,12 @@ function drawStartScreen() {
 
   textSize(20);
   fill(255, 220, 100);
-  text('SPACE', BASE_WIDTH / 2 - 100, BASE_HEIGHT / 2 + 75);
   text('A', BASE_WIDTH / 2 - 100, BASE_HEIGHT / 2 + 105);
   text('ESC', BASE_WIDTH / 2 - 100, BASE_HEIGHT / 2 + 135);
 
   fill(200);
   textAlign(LEFT, CENTER);
-  text('점프 공격', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 75);
-  text('펀치 공격 (오른손 -> 왼손 -> 어퍼컷)', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 105);
+  text('펀치 공격', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 105);
   text('게임 리셋', BASE_WIDTH / 2 - 50, BASE_HEIGHT / 2 + 135);
 
   // 음악 로드 상태
